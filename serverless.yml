@@ -1,0 +1,60 @@
+service: aws-messaging
+
+provider:
+  name: aws
+  runtime: nodejs8.10
+  region: eu-west-1
+  stage: dev
+  # optional, in MB, default is 1024, min is 128
+  memorySize: 128
+  # optional, in seconds, default is 6
+  timeout: 30
+  # optional, default is true
+  versionFunctions: false
+  environment:
+    TABLE_NAME: ${env:TABLE_NAME, "find-face-sessions"}
+    FCM_SERVER_KEY: ${env:FCM_SERVER_KEY}
+  iamRoleStatements:
+    - Effect: "Allow"
+      Action: 
+        - "dynamodb:PutItem"
+        - "dynamodb:GetItem"
+        - "dynamodb:Query"
+        - "dynamodb:DeleteItem"
+      Resource:
+        - "arn:aws:dynamodb:*:*:table/find-face-sessions"
+
+resources:
+  Resources:
+    SessionsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: find-face-sessions
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        # Set the capacity based on the stage
+        ProvisionedThroughput:
+          ReadCapacityUnits: 3
+          WriteCapacityUnits: 3
+
+plugins:
+  - serverless-plugin-typescript
+
+package:
+  exclude:
+    - "node_modules/aws-sdk/**"
+    - "node_modules/aws-lambda/**"
+
+functions:
+  handlePost:
+    handler: src/messaging.postHandler
+    events:
+      - http:
+          path: api/messaging
+          method: post
+          cors: true
+
