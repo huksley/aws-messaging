@@ -2,7 +2,7 @@ import { DynamoDB } from 'aws-sdk'
 import * as t from 'io-ts'
 import { decode, apiResponse, findPayload, ApiResponseHandler } from './util'
 import { Context as LambdaContext, APIGatewayEvent, Callback as LambdaCallback } from 'aws-lambda'
-import { logger as log } from './logger'
+import { logger as log, logger } from './logger'
 import { config } from './config'
 import * as uuidV4 from 'uuid/v4'
 import fetch from 'node-fetch'
@@ -47,17 +47,18 @@ export const postHandler = (
       JSON.stringify(context, null, 2),
   )
 
+  const api = apiResponse(event, context, callback)
   const payload = findPayload(event)
-  log.info(`Using payload`, payload)
+  log.info('Using payload', payload)
 
   try {
     const input = decode<Input>(InputPayload, payload)
-    processEvent(input, apiResponse(event, context, callback)).then(_ => {
-      return apiResponse(event, context, callback).success(input)
+    processEvent(input, api).then(_ => {
+      return api.success(input)
     })
   } catch (err) {
     log.warn('Failed to process event', err)
-    apiResponse(event, context, callback).failure('Exception processing event: ' + err)
+    api.failure('Exception processing event: ' + err)
   }
 }
 
@@ -66,26 +67,57 @@ export const processEvent = (input: Input, api: ApiResponseHandler) => {
     if (!input.token) {
       throw new Error('No token specified')
     }
-    // Add session to table
-    const userId = uuidV4()
-    const params = {
-      TableName: config.TABLE_NAME,
-      Item: {
-        id: userId,
-        token: input.token,
-        ...input.fields,
-      },
-    }
     return db
-      .put(params)
+      .query({
+        IndexName: 'token-index',
+        TableName: config.TABLE_NAME,
+        KeyConditionExpression: '#TOKEN = :TokenRef',
+        ExpressionAttributeValues: {
+          ':TokenRef': input.token,
+        },
+        ExpressionAttributeNames: {
+          '#TOKEN': 'token',
+        },
+        Limit: 1,
+      })
       .promise()
       .then(result => {
-        log.info('Got DynamoDB response', result)
-        return api.success({ ...input, userId, ok: true })
+        logger.info('Got query result', result)
+        if (result.Count === 0) {
+          // Add session to table
+          const userId = uuidV4()
+          return db
+            .put({
+              TableName: config.TABLE_NAME,
+              Item: {
+                id: userId,
+                token: input.token,
+                ...input.fields,
+              },
+            })
+            .promise()
+            .then(result => {
+              log.info('Got DynamoDB response', result)
+              return api.success({ ...input, userId, ok: true, existing: false })
+            })
+            .catch(error => {
+              log.warn('Failed to register', error)
+              api.failure('Failed to register: ' + error)
+            })
+        } else {
+          const session = result.Items![0]
+          return api.success({
+            ...input,
+            userId: session.id,
+            fields: session,
+            ok: true,
+            existing: true,
+          })
+        }
       })
-      .catch(error => {
-        log.warn('Cant register: ' + JSON.stringify(params.Item), error)
-        api.failure('Failed to register: ' + error)
+      .catch(err => {
+        logger.warn('Failed to query', err)
+        api.failure('Failed to query: ' + err, 500)
       })
   } else if (input.event === 'unregister') {
     if (input.userId) {
