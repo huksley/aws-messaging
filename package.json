@@ -14,7 +14,7 @@
     "aws-sdk": "^2.441.0",
     "cross-env": "^5.2.0",
     "dotenv": "^7.0.0",
-    "io-ts": "^1.8.5",
+    "io-ts": "^1.9.0",
     "mime": "^2.4.2",
     "ramda": "^0.26.1",
     "source-map-support": "^0.5.12",
