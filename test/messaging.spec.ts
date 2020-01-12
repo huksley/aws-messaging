@@ -33,6 +33,7 @@ describe('send single message', () => {
       {
         event: 'register',
         token: config.E2E_SAMPLE_TOKEN,
+        topic: undefined,
         userId: null,
         fields: null,
       },
@@ -46,6 +47,7 @@ describe('send single message', () => {
         event: 'message',
         token: null,
         userId: userIdHolder.userId,
+        topic: undefined,
         fields: {
           hello: 'World!',
         },
@@ -60,7 +62,24 @@ describe('send single message', () => {
         event: 'unregister',
         token: config.E2E_SAMPLE_TOKEN,
         userId: userIdHolder.userId,
+        topic: undefined,
         fields: null,
+      },
+      fake,
+    )
+  })
+
+  skip('topic', () => {
+    return processEvent(
+      {
+        event: 'topic',
+        userId: undefined,
+        token: undefined,
+        topic: 'profile-update',
+        fields: {
+          code: 'user-online',
+          message: 'User online test',
+        },
       },
       fake,
     )

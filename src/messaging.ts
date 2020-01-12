@@ -9,7 +9,13 @@ import fetch from 'node-fetch'
 import * as R from 'ramda'
 
 export const InputPayload = t.type({
-  event: t.union([t.literal('register'), t.literal('unregister'), t.literal('message')]),
+  event: t.union([
+    t.literal('register'),
+    t.literal('unregister'),
+    t.literal('message'),
+    t.literal('topic'),
+  ]),
+  topic: t.union([t.string, t.undefined]),
   token: t.union([t.string, t.null, t.undefined]),
   userId: t.union([t.string, t.null, t.undefined]),
   // Meta data on register
@@ -206,6 +212,10 @@ export const processEvent = (input: Input, api: ApiResponseHandler) => {
         log.warn('Failed to find: ' + input.userId, error)
         api.failure('Failed to unregister: ' + error)
       })
+  } else if (input.event === 'topic') {
+    // Send message to topic
+    log.info('Sending message to ' + input.topic, input.fields)
+    return sendToTopic(input.topic!, input.fields)
   } else {
     throw new Error('Invalid event type')
   }
@@ -253,7 +263,7 @@ export const sendToTopic = (topic: string, fields: any) => {
       to: '/topics/' + topic,
     }),
   })
-    .then(response => log.info('sendToTopic response', response) && response.json())
+    .then(response => response.json())
     .then(response => {
       log.info('sendToTopic response', response)
       return response
