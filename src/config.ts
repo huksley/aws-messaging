@@ -15,16 +15,19 @@ export const defaultConfig = {
   API_MESSAGING_URL: '',
   // DynamoDB to hold sessions
   TABLE_NAME: 'find-face-sessions',
-  // Google Cloud Messing Server Key (legacy)
+  // Google Cloud Messaging Server Key (legacy)
   FCM_SERVER_KEY: '',
+  // Topic to receive profile updates by all users
+  PROFILE_TOPIC: 'profile-update',
 }
 
 type defaultConfigKey = keyof typeof defaultConfig
 
 /** Converts specific keys to boolean */
 const toBoolean = (o: typeof defaultConfig, k: defaultConfigKey[]): typeof defaultConfig => {
+  const oo = o as any
   for (const kk of k) {
-    o[kk] = typeof o[kk] === 'string' ? Boolean(o[kk]) : o[kk]
+    oo[kk] = typeof o[kk] === 'string' ? Boolean(o[kk]) : o[kk]
   }
   return o
 }

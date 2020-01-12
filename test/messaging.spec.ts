@@ -1,6 +1,6 @@
-import { logger as log } from './logger'
-import { config } from './config'
-import { processEvent } from './messaging'
+import { logger as log } from '../src/logger'
+import { config } from '../src/config'
+import { processEvent } from '../src/messaging'
 
 describe('send single message', () => {
   const skip = config.TEST_E2E && config.FCM_SERVER_KEY && config.E2E_SAMPLE_TOKEN ? it : it.skip
@@ -58,7 +58,7 @@ describe('send single message', () => {
     return processEvent(
       {
         event: 'unregister',
-        token: null,
+        token: config.E2E_SAMPLE_TOKEN,
         userId: userIdHolder.userId,
         fields: null,
       },

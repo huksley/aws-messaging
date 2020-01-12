@@ -1,6 +1,6 @@
-import { config } from './config'
+import { config } from '../src/config'
 import * as assert from 'assert'
-import { logger as log } from './logger'
+import { logger as log } from '../src/logger'
 
 describe('config.ts', () => {
   it('sensible defaults', () => {

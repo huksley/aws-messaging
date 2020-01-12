@@ -27,6 +27,6 @@
     "noImplicitThis": false,
     "noImplicitReturns": false
   },
-  "include": ["src/**/*", "tslint/**/*"],
+  "include": ["src/**/*", "tslint/**/*", "test/**/*"],
   "exclude": ["node_modules"]
 }

@@ -67,13 +67,15 @@ export const processEvent = (input: Input, api: ApiResponseHandler) => {
     if (!input.token) {
       throw new Error('No token specified')
     }
+    const token = input.token
+    logger.info('Looking for user token', { token })
     return db
       .query({
         IndexName: 'token-index',
         TableName: config.TABLE_NAME,
         KeyConditionExpression: '#TOKEN = :TokenRef',
         ExpressionAttributeValues: {
-          ':TokenRef': input.token,
+          ':TokenRef': token,
         },
         ExpressionAttributeNames: {
           '#TOKEN': 'token',
@@ -82,23 +84,38 @@ export const processEvent = (input: Input, api: ApiResponseHandler) => {
       })
       .promise()
       .then(result => {
-        logger.info('Got query result', result)
+        logger.info('Got users by token', result.Count)
         if (result.Count === 0) {
           // Add session to table
           const userId = uuidV4()
+          logger.info('Creating user by token', { userId, token })
           return db
             .put({
               TableName: config.TABLE_NAME,
               Item: {
                 id: userId,
-                token: input.token,
+                token,
                 ...input.fields,
               },
             })
             .promise()
-            .then(result => {
-              log.info('Got DynamoDB response', result)
-              return api.success({ ...input, userId, ok: true, existing: false })
+            .then(addSessionResult => {
+              log.info('Got create user response', addSessionResult)
+              return subscribeToTopic(token, config.PROFILE_TOPIC)
+                .then(_ => {
+                  return sendToTopic(config.PROFILE_TOPIC, { code: 'new-user', userId })
+                    .then(_ => {
+                      return api.success({ ...input, userId, ok: true, existing: false })
+                    })
+                    .catch(error => {
+                      log.warn('Failed to send to topic', error)
+                      api.failure('Failed to send to topic: ' + error)
+                    })
+                })
+                .catch(error => {
+                  log.warn('Failed to subscribe to topic', error)
+                  api.failure('Failed to subscribe to topic: ' + error)
+                })
             })
             .catch(error => {
               log.warn('Failed to register', error)
@@ -106,13 +123,32 @@ export const processEvent = (input: Input, api: ApiResponseHandler) => {
             })
         } else {
           const session = result.Items![0]
-          return api.success({
-            ...input,
+          console.info('Subscribing user to topic', {
+            token,
             userId: session.id,
-            fields: session,
-            ok: true,
-            existing: true,
+            topic: config.PROFILE_TOPIC,
           })
+          return subscribeToTopic(token, config.PROFILE_TOPIC)
+            .then(_ => {
+              return sendToTopic(config.PROFILE_TOPIC, { code: 'user-online', userId: session.id })
+                .then(_ => {
+                  return api.success({
+                    ...input,
+                    userId: session.id,
+                    fields: session,
+                    ok: true,
+                    existing: true,
+                  })
+                })
+                .catch(error => {
+                  log.warn('Failed to send to topic', error)
+                  api.failure('Failed to send to topic: ' + error)
+                })
+            })
+            .catch(error => {
+              log.warn('Failed to subscribe to topic', error)
+              api.failure('Failed to subscribe to topic: ' + error)
+            })
         }
       })
       .catch(err => {
@@ -120,7 +156,7 @@ export const processEvent = (input: Input, api: ApiResponseHandler) => {
         api.failure('Failed to query: ' + err, 500)
       })
   } else if (input.event === 'unregister') {
-    if (input.userId) {
+    if (!input.userId) {
       throw new Error('No userId specified')
     }
     // Remove session from table buy userId and token
@@ -135,8 +171,8 @@ export const processEvent = (input: Input, api: ApiResponseHandler) => {
           return db
             .delete({ TableName: config.TABLE_NAME, Key: { id: input.userId } })
             .promise()
-            .then(result => {
-              log.info('Got DynamoDB response', result)
+            .then(deleteResult => {
+              log.info('Got delete response', deleteResult)
               api.success({ ...input, ok: true })
             })
             .catch(error => {
@@ -157,7 +193,7 @@ export const processEvent = (input: Input, api: ApiResponseHandler) => {
       .promise()
       .then(result => {
         if (result.Item) {
-          log.info('Got DynamoDB response', result)
+          log.info('Got user response', result)
           const { token } = result.Item
           log.info('Sending message to ' + token, input.fields)
           return sendMessage(token, input.fields)
@@ -191,11 +227,58 @@ export const sendMessage = (tokenId: string, fields: any) => {
       ),
     }),
   })
-    .then(response => response.json())
-    .then(r => {
-      log.info('Response', r)
+    .then(response => {
+      log.info('sendMessage response ' + response.status)
+      return response
     })
     .catch(err => {
-      log.warn('Failed', err)
+      log.warn('sendMessage failed', err)
+      throw err
+    })
+}
+
+export const sendToTopic = (topic: string, fields: any) => {
+  return fetch('https://fcm.googleapis.com/fcm/send', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: 'key=' + config.FCM_SERVER_KEY,
+    },
+    body: JSON.stringify({
+      data: R.assoc(
+        'message',
+        fields && fields.message ? fields.message : 'No message',
+        fields ? fields : { empty: true },
+      ),
+      to: '/topics/' + topic,
+    }),
+  })
+    .then(response => log.info('sendToTopic response', response) && response.json())
+    .then(response => {
+      log.info('sendToTopic response', response)
+      return response
+    })
+    .catch(err => {
+      log.warn('sendToTopic failed', err)
+      throw err
+    })
+}
+
+export const subscribeToTopic = (tokenId: string, topicName: string) => {
+  return fetch(`https://iid.googleapis.com/iid/v1/${tokenId}/rel/topics/${topicName}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: 'key=' + config.FCM_SERVER_KEY,
+    },
+    body: JSON.stringify({}),
+  })
+    .then(response => {
+      log.info('subscribeToTopic response ' + response.status)
+      return response
+    })
+    .catch(err => {
+      log.warn('subscribeToTopic failed', err)
+      throw err
     })
 }

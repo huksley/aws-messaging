@@ -56,7 +56,7 @@
     "build": "tsc -p .",
     "format": "prettier \"src/**/*.{js,ts,tsx}\" --write",
     "lint": "ts-node node_modules/.bin/tslint -p . -t verbose",
-    "test": "chamber exec find-face/test1 -- mocha -r ts-node/register --extension spec.ts",
+    "test": "chamber exec find-face/test1 -- mocha -r ts-node/register --extension ts",
     "deploy": "chamber exec find-face/test1 -- serverless deploy",
     "serverless": "chamber exec find-face/test1 -- serverless"
   },
