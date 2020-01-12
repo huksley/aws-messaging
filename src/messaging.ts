@@ -108,9 +108,11 @@ export const processEvent = (input: Input, api: ApiResponseHandler) => {
             .then(addSessionResult => {
               log.info('Got create user response', addSessionResult)
               return subscribeToTopic(token, config.PROFILE_TOPIC)
-                .then(_ => {
+                .then(subscribeToTopicResult => {
+                  log.info('Subscribed to topic', subscribeToTopicResult)
                   return sendToTopic(config.PROFILE_TOPIC, { code: 'new-user', userId })
-                    .then(_ => {
+                    .then(sendToTopicResult => {
+                      log.info('Sent to topic', sendToTopicResult)
                       return api.success({ ...input, userId, ok: true, existing: false })
                     })
                     .catch(error => {
@@ -129,15 +131,17 @@ export const processEvent = (input: Input, api: ApiResponseHandler) => {
             })
         } else {
           const session = result.Items![0]
-          console.info('Subscribing user to topic', {
+          log.info('Subscribing user to topic', {
             token,
             userId: session.id,
             topic: config.PROFILE_TOPIC,
           })
           return subscribeToTopic(token, config.PROFILE_TOPIC)
-            .then(_ => {
+            .then(subscribeToTopicResult => {
+              log.info('Subscribed to topic', subscribeToTopicResult)
               return sendToTopic(config.PROFILE_TOPIC, { code: 'user-online', userId: session.id })
-                .then(_ => {
+                .then(sendToTopicResult => {
+                  log.info('Sent to topic', sendToTopicResult)
                   return api.success({
                     ...input,
                     userId: session.id,
@@ -283,8 +287,9 @@ export const subscribeToTopic = (tokenId: string, topicName: string) => {
     },
     body: JSON.stringify({}),
   })
+    .then(response => response.json())
     .then(response => {
-      log.info('subscribeToTopic response ' + response.status)
+      log.info('subscribeToTopic response ', response)
       return response
     })
     .catch(err => {
