@@ -260,6 +260,10 @@ export const sendMessage = (tokenId: string, fields: any) => {
 }
 
 export const sendToTopic = (topic: string, fields: any) => {
+  if (!config.ENABLE_TOPIC) {
+    return Promise.resolve({})
+  }
+
   return fetch('https://fcm.googleapis.com/fcm/send', {
     method: 'POST',
     headers: {

@@ -19,6 +19,8 @@ export const defaultConfig = {
   FCM_SERVER_KEY: '',
   // Topic to receive profile updates by all users
   PROFILE_TOPIC: 'profile-update',
+  // Enable topics
+  ENABLE_TOPIC: 1,
 }
 
 type defaultConfigKey = keyof typeof defaultConfig
@@ -52,5 +54,5 @@ export const config = toNumber(
     },
     ['TEST_E2E'],
   ),
-  [],
+  ['ENABLE_TOPIC'],
 )
