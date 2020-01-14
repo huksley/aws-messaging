@@ -143,25 +143,13 @@ export const processEvent = (input: Input, api: ApiResponseHandler) => {
           return subscribeToTopic(token, config.PROFILE_TOPIC)
             .then(subscribeToTopicResult => {
               log.info('Subscribed to topic', subscribeToTopicResult)
-              return sendToTopic(config.PROFILE_TOPIC, {
-                code: 'user-online',
-                message: 'User online',
+              return api.success({
+                ...input,
                 userId: session.id,
+                fields: session,
+                ok: true,
+                existing: true,
               })
-                .then(sendToTopicResult => {
-                  log.info('Sent to topic', sendToTopicResult)
-                  return api.success({
-                    ...input,
-                    userId: session.id,
-                    fields: session,
-                    ok: true,
-                    existing: true,
-                  })
-                })
-                .catch(error => {
-                  log.warn('Failed to send to topic', error)
-                  api.failure('Failed to send to topic: ' + error)
-                })
             })
             .catch(error => {
               log.warn('Failed to subscribe to topic', error)
