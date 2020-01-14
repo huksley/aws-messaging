@@ -110,7 +110,11 @@ export const processEvent = (input: Input, api: ApiResponseHandler) => {
               return subscribeToTopic(token, config.PROFILE_TOPIC)
                 .then(subscribeToTopicResult => {
                   log.info('Subscribed to topic', subscribeToTopicResult)
-                  return sendToTopic(config.PROFILE_TOPIC, { code: 'new-user', userId })
+                  return sendToTopic(config.PROFILE_TOPIC, {
+                    code: 'new-user',
+                    message: 'New user registered',
+                    userId,
+                  })
                     .then(sendToTopicResult => {
                       log.info('Sent to topic', sendToTopicResult)
                       return api.success({ ...input, userId, ok: true, existing: false })
@@ -139,7 +143,11 @@ export const processEvent = (input: Input, api: ApiResponseHandler) => {
           return subscribeToTopic(token, config.PROFILE_TOPIC)
             .then(subscribeToTopicResult => {
               log.info('Subscribed to topic', subscribeToTopicResult)
-              return sendToTopic(config.PROFILE_TOPIC, { code: 'user-online', userId: session.id })
+              return sendToTopic(config.PROFILE_TOPIC, {
+                code: 'user-online',
+                message: 'User online',
+                userId: session.id,
+              })
                 .then(sendToTopicResult => {
                   log.info('Sent to topic', sendToTopicResult)
                   return api.success({
