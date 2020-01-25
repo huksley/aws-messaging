@@ -84,4 +84,17 @@ describe('send single message', () => {
       fake,
     )
   })
+
+  skip('messages', () => {
+    return processEvent(
+      {
+        event: 'messages',
+        userId: userIdHolder.userId,
+        token: undefined,
+        topic: undefined,
+        fields: undefined,
+      },
+      fake,
+    )
+  })
 })

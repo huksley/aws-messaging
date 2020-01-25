@@ -15,6 +15,7 @@ export const defaultConfig = {
   API_MESSAGING_URL: '',
   // DynamoDB to hold sessions
   TABLE_NAME: 'find-face-sessions',
+  MESSAGE_TABLE_NAME: 'find-face-messages',
   // Google Cloud Messaging Server Key (legacy)
   FCM_SERVER_KEY: '',
   // Topic to receive profile updates by all users

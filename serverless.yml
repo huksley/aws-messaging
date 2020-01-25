@@ -27,6 +27,18 @@ provider:
         - "dynamodb:Query"
       Resource:
         - "arn:aws:dynamodb:*:*:table/find-face-sessions/index/token-index"
+    - Effect: "Allow"
+      Action: 
+        - "dynamodb:PutItem"
+        - "dynamodb:GetItem"
+        - "dynamodb:DeleteItem"
+      Resource:
+        - "arn:aws:dynamodb:*:*:table/find-face-messages"
+    - Effect: "Allow"
+      Action: 
+        - "dynamodb:Query"
+      Resource:
+        - "arn:aws:dynamodb:*:*:table/find-face-messages/index/sessionId-index"
 
 resources:
   Resources:

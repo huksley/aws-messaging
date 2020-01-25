@@ -14,6 +14,7 @@ export const InputPayload = t.type({
     t.literal('unregister'),
     t.literal('message'),
     t.literal('topic'),
+    t.literal('messages'),
   ]),
   topic: t.union([t.string, t.undefined]),
   token: t.union([t.string, t.null, t.undefined]),
@@ -59,13 +60,62 @@ export const postHandler = (
 
   try {
     const input = decode<Input>(InputPayload, payload)
-    processEvent(input, api).then(_ => {
-      return api.success(input)
+    processEvent(input, api).then(response => {
+      return api.success({
+        ...input,
+        response,
+      })
     })
   } catch (err) {
     log.warn('Failed to process event', err)
     api.failure('Exception processing event: ' + err)
   }
+}
+
+interface Message {
+  id: string
+  sessionId: string
+  content: any
+}
+
+export const addMessage = (message: Message) => {
+  log.info('Adding message', message)
+  return db
+    .put({
+      TableName: config.MESSAGE_TABLE_NAME,
+      Item: message,
+    })
+    .promise()
+    .then(addMessageResult => {
+      log.info('Added message', addMessageResult)
+      return Promise.resolve(addMessageResult)
+    })
+    .catch(error => {
+      log.warn('Failed to add message', error)
+      return Promise.resolve(error)
+    })
+}
+
+export const findMessages = (sessionId: string) => {
+  log.info('Looking for messages, sessionId = ' + sessionId)
+  return db
+    .query({
+      IndexName: 'sessionId-index',
+      TableName: config.MESSAGE_TABLE_NAME,
+      KeyConditionExpression: '#TOKEN = :TokenRef',
+      ExpressionAttributeValues: {
+        ':TokenRef': sessionId,
+      },
+      ExpressionAttributeNames: {
+        '#TOKEN': 'sessionId',
+      },
+      Limit: 1000,
+    })
+    .promise()
+    .then(result => {
+      log.info('Got messages', result.Items)
+      return result.Items! as Message[]
+    })
 }
 
 export const processEvent = (input: Input, api: ApiResponseHandler) => {
@@ -201,6 +251,11 @@ export const processEvent = (input: Input, api: ApiResponseHandler) => {
         if (result.Item) {
           log.info('Got user response', result)
           const { token } = result.Item
+          addMessage({
+            id: uuidV4(),
+            sessionId: input.userId!,
+            content: input.fields,
+          })
           log.info('Sending message to ' + token, input.fields)
           return sendMessage(token, input.fields)
         } else {
@@ -216,6 +271,10 @@ export const processEvent = (input: Input, api: ApiResponseHandler) => {
     // Send message to topic
     log.info('Sending message to ' + input.topic, input.fields)
     return sendToTopic(input.topic!, input.fields)
+  } else if (input.event === 'messages') {
+    // Send message to topic
+    log.info('Looking for messages for ' + input.userId)
+    return findMessages(input.userId!)
   } else {
     throw new Error('Invalid event type')
   }
