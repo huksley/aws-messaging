@@ -251,13 +251,17 @@ export const processEvent = (input: Input, api: ApiResponseHandler) => {
         if (result.Item) {
           log.info('Got user response', result)
           const { token } = result.Item
+          const messageId = uuidV4()
           addMessage({
-            id: uuidV4(),
+            id: messageId,
             sessionId: input.userId!,
-            content: input.fields,
+            content: {
+              id: messageId,
+              ...input.fields,
+            },
           })
           log.info('Sending message to ' + token, input.fields)
-          return sendMessage(token, input.fields)
+          return sendMessage(token, input.fields, messageId)
         } else {
           log.warn('Cant find: ' + input.userId)
           api.failure('Cant find session: ' + input.userId, 404)
@@ -280,7 +284,7 @@ export const processEvent = (input: Input, api: ApiResponseHandler) => {
   }
 }
 
-export const sendMessage = (tokenId: string, fields: any) => {
+export const sendMessage = (tokenId: string, fields: any, id: string | undefined = undefined) => {
   return fetch('https://fcm.googleapis.com/fcm/send', {
     method: 'POST',
     headers: {
@@ -289,11 +293,11 @@ export const sendMessage = (tokenId: string, fields: any) => {
     },
     body: JSON.stringify({
       registration_ids: [tokenId],
-      data: R.assoc(
-        'message',
-        fields && fields.message ? fields.message : 'No message',
-        fields ? fields : { empty: true },
-      ),
+      data: {
+        message: fields.message ? fields.message : 'No message',
+        id: id || uuidV4(),
+        ...fields,
+      },
     }),
   })
     .then(response => {
