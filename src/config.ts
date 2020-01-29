@@ -21,7 +21,7 @@ export const defaultConfig = {
   // Topic to receive profile updates by all users
   PROFILE_TOPIC: 'profile-update',
   // Enable topics
-  ENABLE_TOPIC: 1,
+  ENABLE_TOPIC: false,
 }
 
 type defaultConfigKey = keyof typeof defaultConfig

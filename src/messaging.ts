@@ -75,6 +75,7 @@ export const postHandler = (
 interface Message {
   id: string
   sessionId: string
+  timestamp: number
   content: any
 }
 
@@ -114,7 +115,9 @@ export const findMessages = (sessionId: string) => {
     .promise()
     .then(result => {
       log.info('Got messages', result.Items)
-      return result.Items! as Message[]
+      return (result.Items! as Message[]).sort((x, y) =>
+        x.timestamp < y.timestamp ? -1 : x.timestamp > y.timestamp ? 1 : 0,
+      )
     })
 }
 
@@ -255,6 +258,7 @@ export const processEvent = (input: Input, api: ApiResponseHandler) => {
           addMessage({
             id: messageId,
             sessionId: input.userId!,
+            timestamp: new Date().getTime(),
             content: {
               id: messageId,
               ...input.fields,
